@@ -1,0 +1,461 @@
+import 'package:flutter/material.dart';
+
+void main() => runApp(const TrimsReportApp());
+
+class TrimsReportApp extends StatelessWidget {
+  const TrimsReportApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          elevation: 2,
+        ),
+      ),
+      home: const ReportFormPage(),
+    );
+  }
+}
+
+class ReportFormPage extends StatefulWidget {
+  const ReportFormPage({super.key});
+
+  @override
+  State<ReportFormPage> createState() => _ReportFormPageState();
+}
+
+class _ReportFormPageState extends State<ReportFormPage> {
+  // --- TABLE 1 CONTROLLERS ---
+  final TextEditingController dateCtrl = TextEditingController();
+  final TextEditingController buyerCtrl = TextEditingController();
+  final TextEditingController styleCtrl = TextEditingController();
+  final TextEditingController orderCtrl = TextEditingController();
+  final TextEditingController inspectorCtrl = TextEditingController();
+
+  // --- TABLE 3 (RESULT & COMMENTS) CONTROLLERS ---
+  final TextEditingController commentsCtrl = TextEditingController();
+  String? finalResult;
+
+  // --- TABLE 2 DATA (General Checkpoints) ---
+  final List<String> generalPoints = [
+    "Inventory report",
+    "Supplier inspection report",
+    "Supplier test report",
+    "Material storing process",
+    "Compared with PDM/ BOM",
+    "Compared with approved trim card",
+    "Appearance test by mock wash as V code/ 3HL",
+    "Maker inspection report",
+    "CTQ analysis",
+    "Design review",
+    "Bulk process review",
+    "Internal test report",
+  ];
+  Map<String, String> generalStatus = {};
+  Map<String, TextEditingController> generalRemarks = {};
+
+  // --- TABLE 3 DATA (Validation Items) ---
+  final Map<String, List<String>> availableItems = {
+    "Main/Care/Size Label": ["Label Size", "Label Color", "Country Name/Code", "Label Quality"],
+    "Button/Rivet": ["Button Color", "Button Logo", "Button Quality", "Button Thickness"],
+    "Zipper": ["Zipper semi lock/auto lock", "Zipper no/zie/mmts", "Zipper color", "Zipper funtionality", "Zipper Quality"],
+    "Elastic": ["Elastic Color", "Elastic Width", "Elastic Quality", "Elastic Shrinkage", "Elastic stretchability/recovery"],
+    "Thread": ["Thread Color", "Thread count", "Thread Quality", "Thread type"],
+    "Drawstring": ["Drawstring Color", "Drawstring Tipping", "Drawstring Quality", "Drawstring Size"],
+    "Polybag": ["Poly Color", "Poly Size", "Written information", "Poly Thickness", "Poly Quality"],
+    "Hangar/Sizer": ["Hangar/Sizer Color", "Hangar/Sizer Size", "Hangar/Sizer Quality"],
+    "Velcro Tape": ["Velcro Tape Color", "Velcro Tape Width", "Velcro Tape Quality"],
+    "Barcode Sticker": ["Sticker Size", "Garments Size", "Sticker Readability", "Sticker Quality"],
+    "Twill Tape": ["Twill Tape Color", "Twill Tape Width", "Twill Tape Quality"],
+    "Barcode Label": ["Label Size", "Barcode Appearance", "Word Readability"],
+    "Hangtag/Price Tag": ["Tag Color", "Tag Written Information", "Tag Quality"],
+    "Leather Patch": ["Leather Patch Color", "Leather Patch Size", "Leather Patch Shade Grouping", "Leather Patch Logo", "Leather Patch Quality"],
+    "Heat Transfer Label": ["HTL Artwork/color", "HTL Size and measurement", "Technical data sheet"],
+  };
+
+  List<Map<String, dynamic>> selectedItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    for (var point in generalPoints) {
+      generalRemarks[point] = TextEditingController();
+      generalStatus[point] = ""; // Initialize with empty status
+    }
+  }
+
+  // --- SUBMIT LOGIC ---
+  void _submitData() {
+    // 1. Table One: Basic Information
+    Map<String, String> tableOne = {
+      "date": dateCtrl.text,
+      "buyer": buyerCtrl.text,
+      "style": styleCtrl.text,
+      "order_number": orderCtrl.text,
+      "inspected_by": inspectorCtrl.text,
+    };
+
+    // 2. Table Two: General Checkpoints
+    List<Map<String, String>> tableTwo = generalPoints.map((point) {
+      return {
+        "checkpoint": point,
+        "remark": generalRemarks[point]?.text ?? "",
+        "status": generalStatus[point] ?? "",
+      };
+    }).toList();
+
+    // 3. Table Three: Item-wise Validation + Result
+    Map<String, dynamic> tableThree = {
+      "items": selectedItems, // Contains Item Name, Validation points, and their Status
+      "final_result": finalResult ?? "Not Set",
+      "comments": commentsCtrl.text,
+    };
+
+    // Print for Debugging (This is where you would call your API/Database)
+    print("Table 1: $tableOne");
+    print("Table 2: $tableTwo");
+    print("Table 3: $tableThree");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Data Prepared for 3 Tables! Check Console.")),
+    );
+  }
+
+  void _addItem(String name) {
+    setState(() {
+      selectedItems.add({
+        "name": name,
+        "points": availableItems[name]!
+            .map((p) => {"label": p, "status": ""})
+            .toList(),
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("Tarasima Apparels Ltd.", style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            _buildSectionHeader("Basic Information"),
+
+            const SizedBox(height:5),
+
+            // ✅ Grid with 2 items per row
+            GridView.count(
+              crossAxisCount: 2, // 2 per line
+              crossAxisSpacing: 5,
+              mainAxisSpacing: 2,
+              childAspectRatio: 4.5,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                // Date field
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: TextField(
+                    controller: dateCtrl,
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
+                    decoration: InputDecoration(
+                      prefixIcon:
+                      const Icon(Icons.calendar_today, color: Colors.blue),
+                      labelText: "Date",
+                      hintText: "Select Date",
+                      filled: true,
+                      fillColor: Colors.blue.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.blue.shade100),
+                      ),
+                    ),
+                  ),
+                ),
+
+                _buildHeaderInput("Buyer", buyerCtrl, Icons.person),
+                _buildHeaderInput("Style", styleCtrl, Icons.style),
+                _buildHeaderInput("Order Number", orderCtrl, Icons.numbers),
+                _buildHeaderInput("Inspected By", inspectorCtrl, Icons.verified_user),
+              ],
+            ),
+            const SizedBox(height: 5),
+            _buildSectionHeader("General Check Points"),
+            ...generalPoints.map((point) => _buildGeneralRow(point)),
+
+            const SizedBox(height: 5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader("Validation Items"),
+                ElevatedButton.icon(
+                  onPressed: _showItemPicker,
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Item"),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                ),
+              ],
+            ),
+            ...selectedItems.map((item) => _buildDynamicSection(item)),
+
+            const SizedBox(height: 15),
+            _buildSectionHeader("Final Decision"),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: ["Pass", "Fail", "Hold"].map((res) => Expanded(
+                      child: RadioListTile<String>(
+                        title: Text(res, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        value: res,
+                        groupValue: finalResult,
+                        activeColor: Colors.blue,
+                        onChanged: (val) => setState(() => finalResult = val),
+                      ),
+                    )).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 15),
+            TextField(
+              controller: commentsCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: "Final Comments",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _submitData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("SUBMIT REPORT", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- REUSABLE UI COMPONENTS ---
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+      ),
+    );
+  }
+
+  Widget _buildHeaderInput(String label, TextEditingController ctrl, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: TextField(
+        controller: ctrl,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.blue),
+          labelText: label,
+          filled: true,
+          fillColor: Colors.blue.shade50.withOpacity(0.3),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blue.shade100)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneralRow(String title) {
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        // Changed 'border: Border.all' to 'side: BorderSide'
+        side: BorderSide(color: Colors.blue.shade100),
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: generalRemarks[title],
+                    decoration: InputDecoration(
+                      hintText: "Enter Remark",
+                      isDense: true,
+                      contentPadding: const EdgeInsets.all(8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _statusSelector(generalStatus[title] ?? "", (val) => setState(() => generalStatus[title] = val)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicSection(Map<String, dynamic> item) {
+    return Container(
+      margin: const EdgeInsets.only(top: 5),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.blue, width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.1), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(item['name'], style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
+              const Icon(Icons.check_circle, color: Colors.blue),
+            ],
+          ),
+          const Divider(color: Colors.blue, thickness: 1),
+          ...(item['points'] as List).map((p) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6.0),
+            child: Row(
+              children: [
+                Expanded(child: Text(p['label'], style: const TextStyle(fontWeight: FontWeight.w500))),
+                _statusSelector(p['status'], (val) => setState(() => p['status'] = val)),
+              ],
+            ),
+          )).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusSelector(String currentStatus, Function(String) onSelect) {
+    return Row(
+      children: ["Ok", "Not OK", "N/A"].map((status) => GestureDetector(
+        onTap: () => onSelect(status),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            children: [
+              Icon(
+                currentStatus == status ? Icons.radio_button_checked : Icons.radio_button_off,
+                color: currentStatus == status ? Colors.blue : Colors.grey,
+                size: 25,
+              ),
+              Text(status, style: TextStyle(fontSize: 10, color: currentStatus == status ? Colors.blue : Colors.grey)),
+            ],
+          ),
+        ),
+      )).toList(),
+    );
+  }
+
+  void _showItemPicker() {
+    final List<String> remainingItems = availableItems.keys
+        .where((key) => !selectedItems.any((item) => item['name'] == key))
+        .toList();
+
+    if (remainingItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("All items already added")));
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Select Item to Add", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+              const Divider(),
+              Expanded(
+                child: ListView(
+                  children: remainingItems.map((key) => ListTile(
+                    leading: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                    title: Text(key),
+                    onTap: () { _addItem(key); Navigator.pop(context); },
+                  )).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.blue, // header background color
+              onPrimary: Colors.white, // header text color
+              onSurface: Colors.black, // body text color
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        // Formats date to 2024-05-20 style
+        dateCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+}
