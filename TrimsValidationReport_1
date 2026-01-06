@@ -355,7 +355,18 @@ class _ReportFormPageState extends State<ReportFormPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(item['name'], style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
-              const Icon(Icons.check_circle, color: Colors.blue),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    iconSize: 20,
+                    onPressed: () => setState(() => selectedItems.removeWhere((i) => i['name'] == item['name'])),
+                    tooltip: "Remove Item",
+                  ),
+                ],
+              ),
             ],
           ),
           const Divider(color: Colors.blue, thickness: 1),
