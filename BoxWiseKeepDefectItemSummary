@@ -1,0 +1,432 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'BOX WISE KEEP DEFECT ITEM SUMMARY',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: const DefectItemSummaryPage(),
+    );
+  }
+}
+
+class ApiService {
+  static const String baseUrl = 'http://172.16.13.241:13806/api';
+  static const String _fabricReceive = 'PPC_GoodsReceived';
+  static const String _trimsInspection = 'PPC_Inspection';
+
+  static String get getBuyersEndpoint =>
+      '$baseUrl/$_fabricReceive/GetBuyersForFabricInspection';
+  static String get getStylesEndpoint =>
+      '$baseUrl/$_fabricReceive/GetStylesForFabricInspection';
+  static String get getItemDataEndpoint =>
+      '$baseUrl/$_trimsInspection/GetItemData';
+  static String get getColorAndSupplierEndpoint =>
+      '$baseUrl/$_fabricReceive/GetColorAndSupList';
+
+  Future<List<String>> getBuyers() async {
+    try {
+      final response = await http.get(Uri.parse(getBuyersEndpoint));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List) {
+          return data.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (e) {
+      print('Error fetching buyers: $e');
+    }
+    return [];
+  }
+
+  Future<List<String>> getStyles(String buyer) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$getStylesEndpoint?buyer=$buyer'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List) {
+          return data.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (e) {
+      print('Error fetching styles: $e');
+    }
+    return [];
+  }
+
+  Future<List<String>> getItemData() async {
+    try {
+      final response = await http.get(Uri.parse(getItemDataEndpoint));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List) {
+          return data.map((e) => e.toString()).toList();
+        }
+      }
+    } catch (e) {
+      print('Error fetching items: $e');
+    }
+    return [];
+  }
+
+  Future<Map<String, List<String>>> getColorAndSupplier() async {
+    try {
+      final response = await http.get(Uri.parse(getColorAndSupplierEndpoint));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        List<String> colors = [];
+        List<String> suppliers = [];
+
+        if (data is Map) {
+          if (data['colors'] is List) {
+            colors = (data['colors'] as List).map((e) => e.toString()).toList();
+          }
+          if (data['suppliers'] is List) {
+            suppliers = (data['suppliers'] as List)
+                .map((e) => e.toString())
+                .toList();
+          }
+        }
+        return {'colors': colors, 'suppliers': suppliers};
+      }
+    } catch (e) {
+      print('Error fetching color and supplier: $e');
+    }
+    return {'colors': [], 'suppliers': []};
+  }
+}
+
+class DefectItemSummaryPage extends StatefulWidget {
+  const DefectItemSummaryPage({super.key});
+
+  @override
+  State<DefectItemSummaryPage> createState() => _DefectItemSummaryPageState();
+}
+
+class _DefectItemSummaryPageState extends State<DefectItemSummaryPage> {
+  final _formKey = GlobalKey<FormState>();
+  final ApiService _apiService = ApiService();
+
+  // Controllers
+  final TextEditingController _boxNoController = TextEditingController();
+  final TextEditingController _slNoController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _buyerController = TextEditingController();
+  final TextEditingController _styleController = TextEditingController();
+  final TextEditingController _itemController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _supplierController = TextEditingController();
+  final TextEditingController _rcvQtyController = TextEditingController();
+  final TextEditingController _checkQtyController = TextEditingController();
+  final TextEditingController _rejectQtyController = TextEditingController();
+  final TextEditingController _reasonController = TextEditingController();
+
+  // Data lists
+  List<String> _buyers = [];
+  List<String> _styles = [];
+  List<String> _items = [];
+  List<String> _colors = [];
+  List<String> _suppliers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _dateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    print('Loading initial data from APIs...');
+
+    _buyers = await _apiService.getBuyers();
+    print('Buyers loaded: ${_buyers.length} items');
+
+    _items = await _apiService.getItemData();
+    print('Items loaded: ${_items.length} items');
+
+    final colorSupplier = await _apiService.getColorAndSupplier();
+    _colors = colorSupplier['colors'] ?? [];
+    _suppliers = colorSupplier['suppliers'] ?? [];
+    print('Colors loaded: ${_colors.length} items');
+    print('Suppliers loaded: ${_suppliers.length} items');
+
+    setState(() {});
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
+      });
+    }
+  }
+
+  Future<void> _onBuyerChanged(String buyer) async {
+    if (buyer.isNotEmpty) {
+      _styles = await _apiService.getStyles(buyer);
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _boxNoController.dispose();
+    _slNoController.dispose();
+    _dateController.dispose();
+    _buyerController.dispose();
+    _styleController.dispose();
+    _itemController.dispose();
+    _colorController.dispose();
+    _supplierController.dispose();
+    _rcvQtyController.dispose();
+    _checkQtyController.dispose();
+    _rejectQtyController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('BOX WISE KEEP DEFECT ITEM SUMMARY'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 3,
+                children: [
+                  _buildTextField(
+                    controller: _boxNoController,
+                    label: 'BOX NO',
+                    keyboardType: TextInputType.text,
+                  ),
+                  _buildTextField(
+                    controller: _slNoController,
+                    label: 'SL NO',
+                    keyboardType: TextInputType.text,
+                  ),
+                  _buildDateField(),
+                  _buildAutocompleteField(
+                    controller: _buyerController,
+                    label: 'BUYER (${_buyers.length})',
+                    options: _buyers,
+                    onChanged: _onBuyerChanged,
+                  ),
+                  _buildAutocompleteField(
+                    controller: _styleController,
+                    label: 'STYLE/ORDER (${_styles.length})',
+                    options: _styles,
+                  ),
+                  _buildAutocompleteField(
+                    controller: _itemController,
+                    label: 'ITEM (${_items.length})',
+                    options: _items,
+                  ),
+                  _buildAutocompleteField(
+                    controller: _colorController,
+                    label: 'COLOR (${_colors.length})',
+                    options: _colors,
+                  ),
+                  _buildAutocompleteField(
+                    controller: _supplierController,
+                    label: 'SUPPLIER (${_suppliers.length})',
+                    options: _suppliers,
+                  ),
+                  _buildTextField(
+                    controller: _rcvQtyController,
+                    label: 'RCV QTY',
+                    keyboardType: TextInputType.number,
+                  ),
+                  _buildTextField(
+                    controller: _checkQtyController,
+                    label: 'CHECK QTY',
+                    keyboardType: TextInputType.number,
+                  ),
+                  _buildTextField(
+                    controller: _rejectQtyController,
+                    label: 'REJECT QTY',
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _reasonController,
+                label: 'REASON',
+                maxLines: 3,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('SUBMIT', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 16,
+        ),
+      ),
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+    );
+  }
+
+  Widget _buildDateField() {
+    return TextFormField(
+      controller: _dateController,
+      decoration: const InputDecoration(
+        labelText: 'DATE',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        suffixIcon: Icon(Icons.calendar_today),
+      ),
+      readOnly: true,
+      onTap: () => _selectDate(context),
+    );
+  }
+
+  Widget _buildAutocompleteField({
+    required TextEditingController controller,
+    required String label,
+    required List<String> options,
+    Function(String)? onChanged,
+  }) {
+    return Autocomplete<String>(
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        // Show all options if text is empty, otherwise filter
+        if (textEditingValue.text.isEmpty) {
+          return options;
+        }
+        return options.where((String option) {
+          return option.toLowerCase().contains(
+            textEditingValue.text.toLowerCase(),
+          );
+        });
+      },
+      onSelected: (String selection) {
+        controller.text = selection;
+        if (onChanged != null) {
+          onChanged(selection);
+        }
+      },
+      fieldViewBuilder:
+          (
+            BuildContext context,
+            TextEditingController fieldController,
+            FocusNode focusNode,
+            VoidCallback onFieldSubmitted,
+          ) {
+            fieldController.text = controller.text;
+            fieldController.addListener(() {
+              controller.text = fieldController.text;
+              if (onChanged != null &&
+                  fieldController.text != controller.text) {
+                onChanged(fieldController.text);
+              }
+            });
+
+            return TextFormField(
+              controller: fieldController,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: label,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
+                suffixIcon: options.isEmpty
+                    ? const Icon(Icons.error_outline, color: Colors.orange)
+                    : const Icon(Icons.arrow_drop_down),
+              ),
+            );
+          },
+    );
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      // Collect form data
+      final formData = {
+        'boxNo': _boxNoController.text,
+        'slNo': _slNoController.text,
+        'date': _dateController.text,
+        'buyer': _buyerController.text,
+        'style': _styleController.text,
+        'item': _itemController.text,
+        'color': _colorController.text,
+        'supplier': _supplierController.text,
+        'rcvQty': _rcvQtyController.text,
+        'checkQty': _checkQtyController.text,
+        'rejectQty': _rejectQtyController.text,
+        'reason': _reasonController.text,
+      };
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Form submitted successfully!')),
+      );
+
+      // Print form data for debugging
+      print('Form Data: $formData');
+
+      // TODO: Send data to your API endpoint
+    }
+  }
+}
